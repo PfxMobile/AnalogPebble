@@ -1,23 +1,49 @@
 {
-    "author": "jacob.rusch@gmail.com",
+    "author": "stosem",
     "dependencies": {
-        "pebble-clay": "^1.0.3"
+        "pebble-clay": "^1.0.4"
     },
     "keywords": [],
     "name": "dial",
+    "description": "Analog watchwace with weather and health data",
+    "license": "GPL-3.0",
+    "repository": {
+    	"type": "git",
+    	"url": "git://github.com/stosem/pebble-wf-AdvancedAnalog.git"
+  	},
+  	"keywords": [
+    	"clock",
+    	"analog",
+    	"watchface",
+		"weather",
+		"health",
+		"quiettime"
+  	],
+  	"bugs": {
+    "url": "https://github.com/stosem/pebble-wf-AdvancedAnalog/issues"
+  	},
+	"homepage": "https://github.com/stosem/pebble-wf-AdvancedAnalog",
     "pebble": {
         "capabilities": [
             "location",
             "configurable",
             "health"
         ],
-        "displayName": "Dial",
+        "displayName": "Advanced Analog",
         "enableMultiJS": true,
         "messageKeys": [
             "KEY_INVERT_COLORS",
+            "KEY_DRAW_ALL_NUMBERS",
+            "KEY_LANG",
+            "KEY_DATE_FORMAT",
+            "KEY_VIBRATE_INTERVAL",
+            "KEY_WEATHER_UPDATE_INTERVAL",
+            "KEY_WEATHER_UNIT",
             "KEY_TEMP_UNIT",
             "KEY_TEMP",
             "KEY_TEMP_C",
+            "KEY_WIND",
+            "KEY_DEG",
             "KEY_ICON"
         ],
         "projectType": "native",
@@ -145,14 +171,14 @@
                     "type": "bitmap"
                 },
                 {
-                    "file": "images/LIGHTENING_WHITE_ICON.png",
-                    "name": "LIGHTENING_WHITE_ICON",
+                    "file": "images/POWER_WHITE_ICON.png",
+                    "name": "POWER_WHITE_ICON",
                     "targetPlatforms": null,
                     "type": "bitmap"
                 },
                 {
-                    "file": "images/LIGHTENING_BLACK_ICON.png",
-                    "name": "LIGHTENING_BLACK_ICON",
+                    "file": "images/POWER_BLACK_ICON.png",
+                    "name": "POWER_BLACK_ICON",
                     "targetPlatforms": null,
                     "type": "bitmap"
                 },
@@ -217,16 +243,35 @@
                     "type": "bitmap"
                 },
                 {
-                    "file": "fonts/ULTRALIGHT.ttf",
-                    "name": "ULTRALIGHT_14",
+                    "file": "images/QUIET_WHITE_ICON.png",
+                    "name": "QUIET_WHITE_ICON",
+                    "targetPlatforms": null,
+                    "type": "bitmap"
+                },
+                {
+                    "file": "images/QUIET_BLACK_ICON.png",
+                    "name": "QUIET_BLACK_ICON",
+                    "targetPlatforms": null,
+                    "type": "bitmap"
+                },
+ 
+                {
+                    "file": "fonts/StolzlThin.ttf",
+                    "characterRegex": "[А-ЯA-Z0-9 ]", 
+                    "name": "WORD_FONT_12",
                     "targetPlatforms": null,
                     "type": "font"
                 },
                 {
-                    "file": "fonts/ARCON_FONT.ttf",
-                    "name": "ARCON_FONT_14",
+                    "file": "fonts/W800_InfoSmall.ttf",
+                    "name": "NUMBER_FONT_16",
                     "targetPlatforms": null,
-                    "trackingAdjust": -1,
+                    "type": "font"
+                },
+                {
+                    "file": "fonts/AlienRegular.ttf",
+                    "name": "HOUR_FONT_26",
+                    "targetPlatforms": null,
                     "type": "font"
                 }
             ]
@@ -238,10 +283,10 @@
             "chalk",
             "diorite"
         ],
-        "uuid": "52972340-5a5e-4452-883a-80e0b3446e8b",
+        "uuid": "28cbde6b-8d42-4136-a0d5-1fb715446fdc",
         "watchapp": {
             "watchface": true
         }
     },
-    "version": "1.8.0"
+    "version": "2.0.0"
 }
