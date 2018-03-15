@@ -5,7 +5,7 @@ Features:
 - Bluetooth, QuietTime, Charge icons.
 - Display steps.
 - Battery indicator.
-- Weather with temperature (C/F), speed and direction.
+- Weather with temperature (C/F), wind speed and direction.
 - You can set vibrate interval (10-60 min).
 - Vibrate if bluetooth lost.
 - Support languages: English, Russian.

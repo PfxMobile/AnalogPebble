@@ -91,7 +91,7 @@ module.exports = [
   				"type": "select",
   				"messageKey": "KEY_VIBRATE_INTERVAL",
   				"defaultValue": "0",
-  				"label": "Vibrate interval",
+  				"label": "Auto vibrate interval",
   				"options": [
     					{ 
       						"label": "OFF", 
@@ -160,7 +160,13 @@ module.exports = [
 				"messageKey": "KEY_DRAW_ALL_NUMBERS",
 				"label": "Draw all numbers (1-12). Only for rectangle display",
 				"defaultValue": true 
-			}
+			},
+            {
+                                "type": "toggle",
+                                "messageKey": "KEY_VIBRATE_ON_BT_LOST",
+                                "label": "Vibrate if Bluetooth lost",
+                                "defaultValue": true
+            },
 		]
     },
 	{

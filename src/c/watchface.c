@@ -7,28 +7,24 @@
 
 #include <pebble.h>
 #include "watchface.h"
-#define DEBUG 1
-#define DEMO 1
+//#define DEBUG 1
+//#define DEMO 1
 
 static Window *s_main_window;
 static Layer *s_dial_layer, *s_battery_layer, *s_hands_layer;
 static TextLayer *s_temp_layer, *s_health_layer, *s_day_text_layer, *s_date_text_layer;
-static GBitmap *s_weather_bitmap, *s_bluetooth_bitmap, *s_charging_bitmap, *s_quiet_bitmap;
-static BitmapLayer *s_weather_bitmap_layer=NULL, *s_bluetooth_bitmap_layer, *s_charging_bitmap_layer, *s_quiet_bitmap_layer;
-static int buf=PBL_IF_ROUND_ELSE(0, 24), battery_percent;
+static GBitmap *s_weather_bitmap=NULL, *s_bluetooth_bitmap=NULL, *s_charging_bitmap=NULL, *s_quiet_bitmap=NULL;
+static BitmapLayer *s_weather_bitmap_layer, *s_bluetooth_bitmap_layer, *s_charging_bitmap_layer, *s_quiet_bitmap_layer;
+static int buf=PBL_IF_ROUND_ELSE(0, 24);
+
 static GFont s_word_font, s_number_font, s_hour_font;
-static char icon_buf[64];
-static unsigned int step_count;
-static char *char_current_steps;
-static bool charging;
-bool quietTimeState = false;
+static Status status;
 static WeatherData weather;
 static ClaySettings settings; // An instance of the struct
 
 // store text align
 static GTextAlignment s_temp_align=GTextAlignmentCenter;
 static GTextAlignment s_health_align=GTextAlignmentCenter;
-static bool is_bt_connected=false;
 
 // MAIN
 
@@ -42,6 +38,7 @@ static void config_clear() {
   settings.DrawAllNumbers = true;
   settings.Lang = EN;
   settings.VibrateInterval = OFF;
+  settings.VibrateOnBTLost = true;
   settings.WeatherUpdateInterval = 30; 
   settings.WeatherUnit = METRIC;
   strcpy(settings.DateFormat, "%d-%m");
@@ -58,6 +55,7 @@ static void config_load() {
 #endif
 };
 
+
 /////////////////////////
 // saves user settings //
 /////////////////////////
@@ -68,10 +66,31 @@ static void config_save() {
 #endif
 };
 
+
+////////////////
+// load default status
+//////////
+static void status_clear() {
+    status.changed=true;
+    status.is_charging=false;
+    status.battery_percent=0;
+    status.is_bt_connected=false;
+    status.is_quiet_time=false;
+    status.step_count = 0;
+};
+
+
 ///////////////////////
 // sets watch colors //
 ///////////////////////
 static void setColors() {
+  if(settings.InvertColors==1) {
+    settings.BackgroundColor = GColorWhite;
+    settings.ForegroundColor = GColorBlack;
+  } else {
+    settings.BackgroundColor = GColorBlack;
+    settings.ForegroundColor = GColorWhite;
+  }
   // set background color
   window_set_background_color(s_main_window, settings.BackgroundColor);
   // set text color for TextLayers
@@ -160,8 +179,6 @@ static void weather_update_req() {
 };
 
 
-
-
 /////////////////////////
 // draws dial on watch //
 /////////////////////////
@@ -177,7 +194,6 @@ static void update_proc_dial(Layer *layer, GContext *ctx) {
 graphics_draw_text(ctx, "6", s_hour_font, GRect((bounds.size.w / 2) - 15, bounds.size.h - 26, 30, 24), GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
 graphics_draw_text(ctx, "9", s_hour_font, GRect(1, (bounds.size.h / 2) - 15, 30, 24), GTextOverflowModeWordWrap, GTextAlignmentLeft, NULL);
 if ( PBL_IF_ROUND_ELSE(true, false) || !settings.DrawAllNumbers ) {
-//if (false) {
       //round - 
   // draw marks
     graphics_context_set_stroke_width(ctx, 4);
@@ -228,7 +244,7 @@ static void update_proc_battery(Layer *layer, GContext *ctx) {
   GPoint end_temp_line = GPoint(PBL_IF_ROUND_ELSE(151, 120), PBL_IF_ROUND_ELSE(109, 99));
   graphics_draw_line(ctx, start_temp_line, end_temp_line);    
   // battery line 
-  int batt = battery_percent/10;
+  int batt = status.battery_percent/10;
   start_temp_line = GPoint(PBL_IF_ROUND_ELSE(119, 88), PBL_IF_ROUND_ELSE(109, 99));
   end_temp_line = GPoint(PBL_IF_ROUND_ELSE(120, 89)+(int)batt*3, PBL_IF_ROUND_ELSE(109, 99));
   graphics_draw_line(ctx, start_temp_line, end_temp_line);    
@@ -241,7 +257,7 @@ static void update_proc_battery(Layer *layer, GContext *ctx) {
   //end_temp_line = GPoint(PBL_IF_ROUND_ELSE(151, 120), PBL_IF_ROUND_ELSE(110, 100));
   //graphics_draw_line(ctx, start_temp_line, end_temp_line);    
   // set visibility of charging icon
-  layer_set_hidden(bitmap_layer_get_layer(s_charging_bitmap_layer), !charging);
+  layer_set_hidden(bitmap_layer_get_layer(s_charging_bitmap_layer), !status.is_charging);
 #ifdef DEBUG
   APP_LOG(APP_LOG_LEVEL_DEBUG,"Redraw: battery");
 #endif
@@ -399,11 +415,10 @@ static void update_date() {
   
   // write date to buffer
   static char date_buffer[32];
+  strcpy(date_buffer, "");
   strftime(date_buffer, sizeof(date_buffer), settings.DateFormat, tick_time);
   
-  // write day to buffer
-  static char day_buffer[32];
-  char *weekday = day_buffer;
+  static char *weekday;
   weekday = a_week[settings.Lang][tick_time->tm_wday];
 
   // display this time on the text layer
@@ -422,10 +437,20 @@ static void update_date() {
 // https://openweathermap.org/weather-conditions    //
 //////////////////////////////////////////////////////
 static void icons_load_weather() {
-  if ( weather.timeStamp == 0 ) { return; }; // no weather
+  if (( weather.timeStamp == 0 ) || ( settings.WeatherUpdateInterval == OFF )) {
+      text_layer_set_text(s_temp_layer, "");
+      layer_set_hidden( bitmap_layer_get_layer(s_weather_bitmap_layer), true );
+      return; // no weather
+  };
+
    // icon
+  char icon_buf[64];
   snprintf(icon_buf, sizeof(icon_buf), "%s", weather.icon);
 
+  if ( s_weather_bitmap ) {
+      gbitmap_destroy (s_weather_bitmap );
+      s_weather_bitmap=NULL;
+  }
   // if inverted
   if(settings.InvertColors) {
     // populate icon variable
@@ -620,19 +645,14 @@ static void icons_load_weather() {
       s_weather_bitmap = gbitmap_create_with_resource(RESOURCE_ID_PARTLY_CLOUDY_NIGHT_WHITE_ICON);
     }   
   }
-  
-  // populate weather icon
-  if(s_weather_bitmap_layer) {
-    bitmap_layer_destroy(s_weather_bitmap_layer);
-    s_weather_bitmap_layer=NULL;
-  }
-  s_weather_bitmap_layer = bitmap_layer_create(GRect(PBL_IF_ROUND_ELSE(78, 60), 40, 24, 16));
-  bitmap_layer_set_compositing_mode(s_weather_bitmap_layer, GCompOpSet);  
+ 
+
   bitmap_layer_set_bitmap(s_weather_bitmap_layer, s_weather_bitmap); 
-  layer_add_child(s_dial_layer, bitmap_layer_get_layer(s_weather_bitmap_layer)); 
-  
+  layer_set_hidden( bitmap_layer_get_layer(s_weather_bitmap_layer), false );
+
   // populate temp
   static char temp_buf[32];
+  strcpy(temp_buf, "");
   snprintf(temp_buf, sizeof(temp_buf), "%d°%d%c", weather.temp, weather.wind, weather.deg); 
   text_layer_set_text(s_temp_layer, temp_buf);
  
@@ -650,6 +670,9 @@ static void icons_load_state() {
 #ifdef DEBUG
   APP_LOG(APP_LOG_LEVEL_DEBUG,"Run: icons_load_state");
 #endif
+  if ( s_bluetooth_bitmap ) { gbitmap_destroy( s_bluetooth_bitmap ); s_bluetooth_bitmap=NULL; };
+  if ( s_quiet_bitmap ) { gbitmap_destroy( s_quiet_bitmap ); s_quiet_bitmap=NULL; };
+  if ( s_charging_bitmap ) { gbitmap_destroy( s_charging_bitmap ); s_charging_bitmap=NULL; };
   // select icon
   if(settings.InvertColors) {
     s_bluetooth_bitmap = gbitmap_create_with_resource(RESOURCE_ID_BLUETOOTH_DISCONNECTED_BLACK_ICON);
@@ -660,31 +683,13 @@ static void icons_load_state() {
     s_quiet_bitmap = gbitmap_create_with_resource(RESOURCE_ID_QUIET_WHITE_ICON);
     s_charging_bitmap = gbitmap_create_with_resource(RESOURCE_ID_POWER_WHITE_ICON);
   }
-  // destroy if exists
-  if(s_bluetooth_bitmap_layer) { bitmap_layer_destroy(s_bluetooth_bitmap_layer); s_bluetooth_bitmap_layer=NULL; };
-  if(s_quiet_bitmap_layer) { bitmap_layer_destroy(s_quiet_bitmap_layer); s_quiet_bitmap_layer=NULL; };
-  if(s_charging_bitmap_layer) { bitmap_layer_destroy(s_charging_bitmap_layer); s_charging_bitmap_layer=NULL; };
-  // create new
-  // bluetooth disconnected icon
-  s_bluetooth_bitmap_layer = bitmap_layer_create(GRect(PBL_IF_ROUND_ELSE(20, 16), PBL_IF_ROUND_ELSE(84, 79), 14, 14));
-  bitmap_layer_set_compositing_mode(s_bluetooth_bitmap_layer, GCompOpSet);
   bitmap_layer_set_bitmap(s_bluetooth_bitmap_layer, s_bluetooth_bitmap); 
-  layer_add_child(s_dial_layer, bitmap_layer_get_layer(s_bluetooth_bitmap_layer));       
-  // quiettime icon
-  s_quiet_bitmap_layer = bitmap_layer_create(GRect(PBL_IF_ROUND_ELSE(30, 28), PBL_IF_ROUND_ELSE(84, 79), 14, 14));
-  bitmap_layer_set_compositing_mode(s_quiet_bitmap_layer, GCompOpSet);
   bitmap_layer_set_bitmap(s_quiet_bitmap_layer, s_quiet_bitmap); 
-  layer_add_child(s_dial_layer, bitmap_layer_get_layer(s_quiet_bitmap_layer));    
-  // charging icon 
-  s_charging_bitmap_layer = bitmap_layer_create(GRect(PBL_IF_ROUND_ELSE(38, 36), PBL_IF_ROUND_ELSE(84, 79), 14, 14));
-  bitmap_layer_set_compositing_mode(s_charging_bitmap_layer, GCompOpSet);
   bitmap_layer_set_bitmap(s_charging_bitmap_layer, s_charging_bitmap); 
-  layer_add_child(s_dial_layer, bitmap_layer_get_layer(s_charging_bitmap_layer));    
   // hide icons by it state
-  //
-  layer_set_hidden(bitmap_layer_get_layer(s_bluetooth_bitmap_layer), is_bt_connected);
-  layer_set_hidden(bitmap_layer_get_layer(s_quiet_bitmap_layer), !quietTimeState);
-  layer_set_hidden(bitmap_layer_get_layer(s_charging_bitmap_layer), !charging);
+  layer_set_hidden(bitmap_layer_get_layer(s_bluetooth_bitmap_layer), status.is_bt_connected);
+  layer_set_hidden(bitmap_layer_get_layer(s_quiet_bitmap_layer), !status.is_quiet_time);
+  layer_set_hidden(bitmap_layer_get_layer(s_charging_bitmap_layer), !status.is_charging);
 };
 
 
@@ -693,14 +698,14 @@ static void icons_load_state() {
 //////////////////
 static void handler_tick(struct tm *tick_time, TimeUnits units_changed) {
   // update quiet time status
-  quietTimeState = quiet_time_is_active();
+  status.is_quiet_time = quiet_time_is_active();
 #ifdef DEBUG
   APP_LOG(APP_LOG_LEVEL_DEBUG,"Run: handler tick");
 #endif
 #ifdef DEMO
-  quietTimeState = true; 
+  status.is_quiet_time = true; 
 #endif
-  layer_set_hidden(bitmap_layer_get_layer(s_quiet_bitmap_layer), !quietTimeState);
+  layer_set_hidden(bitmap_layer_get_layer(s_quiet_bitmap_layer), !status.is_quiet_time);
   layer_mark_dirty(s_hands_layer);
   update_date();
  
@@ -708,14 +713,13 @@ static void handler_tick(struct tm *tick_time, TimeUnits units_changed) {
   if (settings.VibrateInterval > 0) {
      if ( (tick_time->tm_min % settings.VibrateInterval == 0) || (
           (tick_time->tm_min == 0 ) && ( settings.VibrateInterval == 60) ) )  {
-        if (!quietTimeState) { vibes_short_pulse(); };
+        if (!status.is_quiet_time) { vibes_short_pulse(); };
      };
   };
 
   // Get weather update requiest
   if (settings.WeatherUpdateInterval != OFF ) {
       weather_load();
-      icons_load_weather();
       if (settings.WeatherUpdateInterval < 60 ) {
             if(tick_time->tm_min % settings.WeatherUpdateInterval == 0) { weather_update_req(); }; // minutes
       } else {
@@ -730,20 +734,18 @@ static void handler_tick(struct tm *tick_time, TimeUnits units_changed) {
 // registers battery update events //
 /////////////////////////////////////
 static void handler_battery(BatteryChargeState charge_state) {
-  battery_percent = charge_state.charge_percent;
+  status.battery_percent = charge_state.charge_percent;
   if(charge_state.is_charging || charge_state.is_plugged) {
-    charging = true;
+    status.is_charging = true;
   } else {
-    charging = false;
+    status.is_charging = false;
   }
 #ifdef DEBUG
   APP_LOG(APP_LOG_LEVEL_DEBUG,"Run: handler battery");
 #endif
 #ifdef DEMO
-  charging = true; 
+  status.is_charging = true; 
 #endif
-  // force update to circle
-  //layer_mark_dirty(s_battery_layer); //save power, redraw later with all
 };
 
 
@@ -752,28 +754,17 @@ static void handler_battery(BatteryChargeState charge_state) {
 ///////////
 static void handler_health(HealthEventType event, void *context) {
  if(event==HealthEventMovementUpdate) {
-    step_count = (int)health_service_sum_today(HealthMetricStepCount);
+    status.step_count = (int)health_service_sum_today(HealthMetricStepCount);
 #ifdef DEBUG
     APP_LOG(APP_LOG_LEVEL_DEBUG,"Run: handler_health");
 #endif
 #ifdef DEMO
-    step_count = 12345;
+    status.step_count = 12345;
 #endif
-    //
-    // write to char_current_steps variable
     static char health_buf[32];
-    /* 
-	if(step_count > 10000){
-    	snprintf(health_buf, sizeof(health_buf), "%dk", step_count / 1000);
-	}else if(step_count > 1000){
-    	snprintf(health_buf, sizeof(health_buf), "%d.%dk", step_count / 1000, (step_count % 1000) / 100);
-  	}else{
-    	snprintf(health_buf, sizeof(health_buf), "%d", step_count);
-  	}
-    */
- 	snprintf(health_buf, sizeof(health_buf), "%d", step_count);
-    char_current_steps = health_buf;
-    text_layer_set_text(s_health_layer, char_current_steps);
+    strcpy(health_buf,"");
+ 	snprintf(health_buf, sizeof(health_buf), "%d", status.step_count);
+    text_layer_set_text(s_health_layer, health_buf);
 #ifdef DEBUG
     APP_LOG(APP_LOG_LEVEL_INFO, "health handler completed");
 #endif
@@ -792,17 +783,17 @@ static void callback_bluetooth(bool connected) {
   connected=false;
 #endif
   // vibrate on disconnect not on quiet time 
-  if(is_bt_connected && !connected && !quietTimeState) {
+  if(status.is_bt_connected && !connected && !status.is_quiet_time && settings.VibrateOnBTLost) {
     vibes_double_pulse();
   }
   // status changed to on
-  if (!is_bt_connected && connected ) {
+  if (!status.is_bt_connected && connected ) {
     if ( settings.WeatherUpdateInterval != OFF ) { weather_load(); }; // check maybe weather too old
   };
-  is_bt_connected=connected;
-  layer_set_hidden(bitmap_layer_get_layer(s_bluetooth_bitmap_layer), is_bt_connected);
+  status.is_bt_connected=connected;
+  layer_set_hidden(bitmap_layer_get_layer(s_bluetooth_bitmap_layer), status.is_bt_connected);
 #ifdef DEBUG
-   APP_LOG(APP_LOG_LEVEL_DEBUG,"Redraw: bluetooth, %d", is_bt_connected);
+   APP_LOG(APP_LOG_LEVEL_DEBUG,"Redraw: bluetooth, %d", status.is_bt_connected);
 #endif
 };
 
@@ -833,6 +824,10 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
   Tuple *invert_colors_t = dict_find(iterator, MESSAGE_KEY_KEY_INVERT_COLORS);
   if(invert_colors_t) { settings.InvertColors = invert_colors_t->value->int32 == 1; }
 
+  // vibrate on bt lost
+  Tuple *vibrate_on_bt_lost_t = dict_find(iterator, MESSAGE_KEY_KEY_VIBRATE_ON_BT_LOST);
+  if(vibrate_on_bt_lost_t) { settings.VibrateOnBTLost = vibrate_on_bt_lost_t->value->int32 == 1; }
+
   // draw all numbers
   Tuple *draw_all_numbers_t = dict_find(iterator, MESSAGE_KEY_KEY_DRAW_ALL_NUMBERS);
   if(draw_all_numbers_t) { settings.DrawAllNumbers = draw_all_numbers_t->value->int32 == 1; }
@@ -861,16 +856,11 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
   // weather update interval changed
   if ( settings.WeatherUpdateInterval != atoi(weather_update_interval_t->value->cstring) ) {
        settings.WeatherUpdateInterval = atoi(weather_update_interval_t->value->cstring);
-      // load weather icons
+      // load weather 
+      icons_load_weather();
       if (settings.WeatherUpdateInterval != OFF) { 
       weather_update_req();
-        } else {
-      if(s_weather_bitmap_layer) { 
-          bitmap_layer_destroy(s_weather_bitmap_layer); 
-          s_weather_bitmap_layer=NULL;
       };
-      text_layer_set_text(s_temp_layer, "");
-       };
   };
 #ifdef DEBUG
     APP_LOG(APP_LOG_LEVEL_INFO, "set Weather update interval=%d", settings.WeatherUpdateInterval );
@@ -902,14 +892,6 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
     weather_save();
     icons_load_weather();
   };
- 
-  if(settings.InvertColors==1) {
-    settings.BackgroundColor = GColorWhite;
-    settings.ForegroundColor = GColorBlack;
-  } else {
-    settings.BackgroundColor = GColorBlack;
-    settings.ForegroundColor = GColorWhite;
-  }
   
 	setColors();	
     icons_load_state();
@@ -959,6 +941,23 @@ static void main_window_load(Window *window) {
   text_layer_set_font(s_temp_layer, s_number_font);
   layer_add_child(s_dial_layer, text_layer_get_layer(s_temp_layer));
 
+  // create weather bitmap
+  s_weather_bitmap_layer = bitmap_layer_create(GRect(PBL_IF_ROUND_ELSE(78, 60), 40, 24, 16));
+  bitmap_layer_set_compositing_mode(s_weather_bitmap_layer, GCompOpSet);  
+  layer_add_child(s_dial_layer, bitmap_layer_get_layer(s_weather_bitmap_layer)); 
+  // bluetooth disconnected icon
+  s_bluetooth_bitmap_layer = bitmap_layer_create(GRect(PBL_IF_ROUND_ELSE(20, 16), PBL_IF_ROUND_ELSE(84, 79), 14, 14));
+  bitmap_layer_set_compositing_mode(s_bluetooth_bitmap_layer, GCompOpSet);
+  layer_add_child(s_dial_layer, bitmap_layer_get_layer(s_bluetooth_bitmap_layer));       
+  // quiettime icon
+  s_quiet_bitmap_layer = bitmap_layer_create(GRect(PBL_IF_ROUND_ELSE(30, 28), PBL_IF_ROUND_ELSE(84, 79), 14, 14));
+  bitmap_layer_set_compositing_mode(s_quiet_bitmap_layer, GCompOpSet);
+  layer_add_child(s_dial_layer, bitmap_layer_get_layer(s_quiet_bitmap_layer));    
+  // charging icon 
+  s_charging_bitmap_layer = bitmap_layer_create(GRect(PBL_IF_ROUND_ELSE(38, 36), PBL_IF_ROUND_ELSE(84, 79), 14, 14));
+  bitmap_layer_set_compositing_mode(s_charging_bitmap_layer, GCompOpSet);
+  layer_add_child(s_dial_layer, bitmap_layer_get_layer(s_charging_bitmap_layer));    
+
   // battery
   s_battery_layer = layer_create(bounds);
   layer_set_update_proc(s_battery_layer, update_proc_battery);
@@ -991,25 +990,16 @@ static void main_window_load(Window *window) {
   layer_add_child(window_layer, s_hands_layer);
 
   // detect quiet
-  quietTimeState = quiet_time_is_active(); 
+  status.is_quiet_time = quiet_time_is_active(); 
 
   // Make sure the date is displayed from the start
   update_date();
 
-  icons_load_state();
- 
   setColors();	
-  // load appropriate icon
-  if (settings.WeatherUpdateInterval != OFF) { 
-        icons_load_weather();  
-  } else { 
-        if(s_weather_bitmap_layer) { 
-            bitmap_layer_destroy(s_weather_bitmap_layer); 
-            s_weather_bitmap_layer=NULL; 
-        };
-        text_layer_set_text(s_temp_layer, "");
-  };
+  icons_load_state();
+  icons_load_weather();  
 	
+  status_clear(); 
   config_save(); 
 #ifdef DEBUG 
   APP_LOG(APP_LOG_LEVEL_DEBUG, "main_window_load");
@@ -1024,7 +1014,15 @@ static void main_window_unload(Window *window) {
 #ifdef DEBUG
     APP_LOG(APP_LOG_LEVEL_INFO, "begin main window unload");
 #endif
-  if (s_temp_layer) { text_layer_destroy(s_temp_layer); };
+
+  // unsubscribe
+  tick_timer_service_unsubscribe();
+  battery_state_service_unsubscribe();
+  bluetooth_connection_service_unsubscribe();
+  health_service_events_unsubscribe(); 
+
+  // unload text layer
+  text_layer_destroy(s_temp_layer); 
   text_layer_destroy(s_health_layer);
   text_layer_destroy(s_day_text_layer);
   text_layer_destroy(s_date_text_layer);  
@@ -1033,20 +1031,35 @@ static void main_window_unload(Window *window) {
     APP_LOG(APP_LOG_LEVEL_INFO, "destroy gbitmap");
 #endif
   
-  if (s_weather_bitmap) { gbitmap_destroy(s_weather_bitmap); };
-  gbitmap_destroy(s_bluetooth_bitmap);
-  gbitmap_destroy(s_charging_bitmap);
+  // unload gbitmap
+  if (s_weather_bitmap) gbitmap_destroy(s_weather_bitmap); 
+  if (s_bluetooth_bitmap) gbitmap_destroy(s_bluetooth_bitmap);
+  if (s_charging_bitmap) gbitmap_destroy(s_charging_bitmap);
+  if (s_quiet_bitmap) gbitmap_destroy(s_quiet_bitmap);
   
 #ifdef DEBUG
     APP_LOG(APP_LOG_LEVEL_INFO, "destroy bitmap layer");
 #endif
+
+  // unload bitmap layer
   if(s_weather_bitmap_layer) { bitmap_layer_destroy(s_weather_bitmap_layer); s_weather_bitmap_layer=NULL; };
   if(s_bluetooth_bitmap_layer) { bitmap_layer_destroy(s_bluetooth_bitmap_layer); s_bluetooth_bitmap_layer=NULL; };
   if(s_charging_bitmap_layer) { bitmap_layer_destroy(s_charging_bitmap_layer); s_charging_bitmap_layer=NULL; };
+  if(s_quiet_bitmap_layer) { bitmap_layer_destroy(s_quiet_bitmap_layer); s_quiet_bitmap_layer=NULL; };
+
+#ifdef DEBUG
+    APP_LOG(APP_LOG_LEVEL_INFO, "destroy fonts");
+#endif
+  // unload font
+  fonts_unload_custom_font(s_word_font);
+  fonts_unload_custom_font(s_number_font);
+  fonts_unload_custom_font(s_hour_font);
 
 #ifdef DEBUG
     APP_LOG(APP_LOG_LEVEL_INFO, "destroy layers");
 #endif
+
+  // unload layer
   layer_destroy(s_dial_layer);
   layer_destroy(s_hands_layer);
   layer_destroy(s_battery_layer); 

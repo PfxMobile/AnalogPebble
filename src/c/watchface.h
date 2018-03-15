@@ -35,14 +35,13 @@ enum weather_units {
 	IMPERIAL=1
 };
 
-///////////////////
 // Clay settings //
-///////////////////
 typedef struct ClaySettings {
   GColor BackgroundColor;
   GColor ForegroundColor;
   bool InvertColors;
   bool DrawAllNumbers;
+  bool VibrateOnBTLost;
   uint8_t  Lang;
   uint16_t  WeatherUpdateInterval;
   uint8_t  WeatherUnit;
@@ -59,9 +58,20 @@ typedef struct WeatherData {
   char icon[64];	
 } WeatherData; 
 
+// status flags
+typedef struct Status {
+    bool changed;
+    bool is_charging;
+    uint8_t  battery_percent;
+    bool is_bt_connected;
+    bool is_quiet_time;
+    uint16_t step_count;
+} Status;
+
 static void config_clear();
 static void config_load();
 static void config_save();
+static void status_clear();
 static void setColors();
 static void weather_save();
 static void weather_clear();

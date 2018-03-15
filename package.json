@@ -37,6 +37,7 @@
             "KEY_LANG",
             "KEY_DATE_FORMAT",
             "KEY_VIBRATE_INTERVAL",
+            "KEY_VIBRATE_ON_BT_LOST",
             "KEY_WEATHER_UPDATE_INTERVAL",
             "KEY_WEATHER_UNIT",
             "KEY_TEMP_UNIT",
@@ -288,5 +289,5 @@
             "watchface": true
         }
     },
-    "version": "2.0.0"
+    "version": "2.1.0"
 }
