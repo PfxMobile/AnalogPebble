@@ -11,11 +11,11 @@
 //#define DEMO 1
 
 static Window *s_main_window;
-static Layer *s_dial_layer, *s_battery_layer, *s_hands_layer;
+static Layer *s_dial_layer, *s_battery_layer, *s_hands_layer, *background_layer;
 static TextLayer *s_temp_layer, *s_health_layer, *s_day_text_layer, *s_date_text_layer;
-static GBitmap *s_weather_bitmap=NULL, *s_bluetooth_bitmap=NULL, *s_charging_bitmap=NULL, *s_quiet_bitmap=NULL;
+static GBitmap *s_weather_bitmap=NULL, *s_bluetooth_bitmap=NULL, *s_charging_bitmap=NULL, *s_quiet_bitmap=NULL, *background=NULL;
 static BitmapLayer *s_weather_bitmap_layer, *s_bluetooth_bitmap_layer, *s_charging_bitmap_layer, *s_quiet_bitmap_layer;
-static int buf=PBL_IF_ROUND_ELSE(0, 24);
+static int buf=PBL_IF_ROUND_ELSE(0, 24),countFirst=0,countSecond=0;
 
 static GFont s_word_font, s_number_font, s_hour_font;
 static Status status;
@@ -32,16 +32,16 @@ static GTextAlignment s_health_align=GTextAlignmentCenter;
 // set default Clay settings //
 ///////////////////////////////
 static void config_clear() {
-  settings.BackgroundColor = GColorBlack;
-  settings.ForegroundColor = GColorWhite;
-  settings.InvertColors = false;
+  settings.BackgroundColor = GColorWhite;//GColorBlack;
+  settings.ForegroundColor = GColorBlack;//GColorWhite;
+  settings.InvertColors = true;
   settings.DrawAllNumbers = true;
-  settings.Lang = EN;
+  settings.Lang = RU;
   settings.VibrateInterval = OFF;
   settings.VibrateOnBTLost = true;
   settings.WeatherUpdateInterval = 30; 
   settings.WeatherUnit = METRIC;
-  strcpy(settings.DateFormat, "%d-%m");
+  strcpy(settings.DateFormat, "%d");
 };
 
 
@@ -84,20 +84,22 @@ static void status_clear() {
 // sets watch colors //
 ///////////////////////
 static void setColors() {
-  if(settings.InvertColors==1) {
+  /*if(settings.InvertColors==1) {
     settings.BackgroundColor = GColorWhite;
     settings.ForegroundColor = GColorBlack;
   } else {
     settings.BackgroundColor = GColorBlack;
     settings.ForegroundColor = GColorWhite;
-  }
+  }*/
+  settings.BackgroundColor = GColorWhite;
+  settings.ForegroundColor = GColorBlack;
   // set background color
   window_set_background_color(s_main_window, settings.BackgroundColor);
   // set text color for TextLayers
-  text_layer_set_text_color(s_temp_layer, settings.ForegroundColor);
-  text_layer_set_text_color(s_health_layer, settings.ForegroundColor);
-  text_layer_set_text_color(s_day_text_layer, settings.ForegroundColor);
-  text_layer_set_text_color(s_date_text_layer, settings.ForegroundColor);
+  text_layer_set_text_color(s_temp_layer, settings.BackgroundColor);
+  text_layer_set_text_color(s_health_layer, settings.BackgroundColor);
+  text_layer_set_text_color(s_day_text_layer, settings.BackgroundColor);
+  text_layer_set_text_color(s_date_text_layer, settings.BackgroundColor);
   // draw hands
   layer_mark_dirty(s_hands_layer); 
 #ifdef DEBUG 
@@ -177,7 +179,18 @@ static void weather_update_req() {
     // Send the message!
     app_message_outbox_send();
 };
-
+/////////////////////////
+// draws background    //
+/////////////////////////
+static void background_layer_update_callback(Layer *layer, GContext* ctx) 
+{
+  #ifdef DEBUG
+  APP_LOG(APP_LOG_LEVEL_DEBUG,"Background Layer Update");
+	#endif
+	//Background
+	GSize bg_size = gbitmap_get_bounds(background).size;
+	graphics_draw_bitmap_in_rect(ctx, background, GRect(0, 0, bg_size.w, bg_size.h));
+}
 
 /////////////////////////
 // draws dial on watch //
@@ -189,10 +202,10 @@ static void update_proc_dial(Layer *layer, GContext *ctx) {
   graphics_context_set_text_color(ctx, settings.ForegroundColor);
   graphics_context_set_antialiased(ctx, true);
   // base numbers
-  graphics_draw_text(ctx, "12", s_hour_font, GRect((bounds.size.w / 2) - 15, -5, 30, 24), GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
-  graphics_draw_text(ctx, "3", s_hour_font, GRect(bounds.size.w - 31, (bounds.size.h / 2) - 15, 30, 24), GTextOverflowModeWordWrap, GTextAlignmentRight, NULL);
-graphics_draw_text(ctx, "6", s_hour_font, GRect((bounds.size.w / 2) - 15, bounds.size.h - 26, 30, 24), GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
-graphics_draw_text(ctx, "9", s_hour_font, GRect(1, (bounds.size.h / 2) - 15, 30, 24), GTextOverflowModeWordWrap, GTextAlignmentLeft, NULL);
+  // graphics_draw_text(ctx, "12", s_hour_font, GRect((bounds.size.w / 2) - 15, 0, 30, 24), GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
+  //graphics_draw_text(ctx, "3", s_hour_font, GRect(bounds.size.w - 36, (bounds.size.h / 2) - 15, 30, 24), GTextOverflowModeWordWrap, GTextAlignmentRight, NULL);
+//graphics_draw_text(ctx, "6", s_hour_font, GRect((bounds.size.w / 2) - 15, bounds.size.h - 33, 30, 24), GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
+//graphics_draw_text(ctx, "9", s_hour_font, GRect(6, (bounds.size.h / 2) - 15, 30, 24), GTextOverflowModeWordWrap, GTextAlignmentLeft, NULL);
 if ( PBL_IF_ROUND_ELSE(true, false) || !settings.DrawAllNumbers ) {
       //round - 
   // draw marks
@@ -217,14 +230,14 @@ if ( PBL_IF_ROUND_ELSE(true, false) || !settings.DrawAllNumbers ) {
   	} // end of loop 
   } else { 
       //rectangle
-  graphics_draw_text(ctx, "1", s_hour_font, GRect((bounds.size.w / 4*3) - PBL_IF_ROUND_ELSE(30,15), PBL_IF_ROUND_ELSE(5,-5), 30, 24), GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
-  graphics_draw_text(ctx, "2", s_hour_font, GRect(bounds.size.w - PBL_IF_ROUND_ELSE(49,31), (bounds.size.h / 4) - 15, 30, 24), GTextOverflowModeWordWrap, GTextAlignmentRight, NULL);
-  graphics_draw_text(ctx, "4", s_hour_font, GRect(bounds.size.w - PBL_IF_ROUND_ELSE(49,31), (bounds.size.h / 4*3) - 15, 30, 24), GTextOverflowModeWordWrap, GTextAlignmentRight, NULL);
-  graphics_draw_text(ctx, "5", s_hour_font, GRect((bounds.size.w / 4*3) - PBL_IF_ROUND_ELSE(30,15), bounds.size.h - PBL_IF_ROUND_ELSE(36,26), 30, 24), GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
-  graphics_draw_text(ctx, "7", s_hour_font, GRect((bounds.size.w / 4) - PBL_IF_ROUND_ELSE(0,15), bounds.size.h - PBL_IF_ROUND_ELSE(36,26), 30, 24), GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
-  graphics_draw_text(ctx, "8", s_hour_font, GRect(PBL_IF_ROUND_ELSE(18,1), (bounds.size.h / 4*3) - 15, 30, 24), GTextOverflowModeWordWrap, GTextAlignmentLeft, NULL);
-  graphics_draw_text(ctx, "10", s_hour_font, GRect(PBL_IF_ROUND_ELSE(18,1), (bounds.size.h / 4) - 15, 30, 24), GTextOverflowModeWordWrap, GTextAlignmentLeft, NULL);
-  graphics_draw_text(ctx, "11", s_hour_font, GRect((bounds.size.w / 4) - PBL_IF_ROUND_ELSE(0,15), PBL_IF_ROUND_ELSE(5,-5), 30, 24), GTextOverflowModeWordWrap, GTextAlignmentLeft, NULL);
+  graphics_draw_text(ctx, "1", s_hour_font, GRect((bounds.size.w / 4*3) - PBL_IF_ROUND_ELSE(30,10), PBL_IF_ROUND_ELSE(5,0), 30, 24), GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
+  graphics_draw_text(ctx, "2", s_hour_font, GRect(bounds.size.w - PBL_IF_ROUND_ELSE(49,36), (bounds.size.h / 4) - 10, 30, 24), GTextOverflowModeWordWrap, GTextAlignmentRight, NULL);
+  graphics_draw_text(ctx, "4", s_hour_font, GRect(bounds.size.w - PBL_IF_ROUND_ELSE(49,36), (bounds.size.h / 4*3) - 20, 30, 24), GTextOverflowModeWordWrap, GTextAlignmentRight, NULL);
+  graphics_draw_text(ctx, "5", s_hour_font, GRect((bounds.size.w / 4*3) - PBL_IF_ROUND_ELSE(30,10), bounds.size.h - PBL_IF_ROUND_ELSE(36,33), 30, 24), GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
+  graphics_draw_text(ctx, "7", s_hour_font, GRect((bounds.size.w / 4) - PBL_IF_ROUND_ELSE(0,15), bounds.size.h - PBL_IF_ROUND_ELSE(36,33), 30, 24), GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
+  graphics_draw_text(ctx, "8", s_hour_font, GRect(PBL_IF_ROUND_ELSE(18,6), (bounds.size.h / 4*3) - 20, 30, 24), GTextOverflowModeWordWrap, GTextAlignmentLeft, NULL);
+  graphics_draw_text(ctx, "10", s_hour_font, GRect(PBL_IF_ROUND_ELSE(18,6), (bounds.size.h / 4) - 10, 30, 24), GTextOverflowModeWordWrap, GTextAlignmentLeft, NULL);
+  graphics_draw_text(ctx, "11", s_hour_font, GRect((bounds.size.w / 4) - PBL_IF_ROUND_ELSE(0,15), PBL_IF_ROUND_ELSE(5,0), 30, 24), GTextOverflowModeWordWrap, GTextAlignmentLeft, NULL);
   }
 #ifdef DEBUG
  APP_LOG(APP_LOG_LEVEL_DEBUG,"Redraw: dial");
@@ -240,17 +253,17 @@ static void update_proc_battery(Layer *layer, GContext *ctx) {
   graphics_context_set_stroke_color(ctx, settings.ForegroundColor);
   graphics_context_set_stroke_width(ctx, 1);
   // end point
-  GPoint start_temp_line = GPoint(PBL_IF_ROUND_ELSE(150, 119), PBL_IF_ROUND_ELSE(109, 99));
-  GPoint end_temp_line = GPoint(PBL_IF_ROUND_ELSE(151, 120), PBL_IF_ROUND_ELSE(109, 99));
+  GPoint start_temp_line = GPoint(PBL_IF_ROUND_ELSE(150, 86), PBL_IF_ROUND_ELSE(109, 145));
+  GPoint end_temp_line = GPoint(PBL_IF_ROUND_ELSE(151, 87), PBL_IF_ROUND_ELSE(109, 145));
   graphics_draw_line(ctx, start_temp_line, end_temp_line);    
   // battery line 
   int batt = status.battery_percent/10;
-  start_temp_line = GPoint(PBL_IF_ROUND_ELSE(119, 88), PBL_IF_ROUND_ELSE(109, 99));
-  end_temp_line = GPoint(PBL_IF_ROUND_ELSE(120, 89)+(int)batt*3, PBL_IF_ROUND_ELSE(109, 99));
+  start_temp_line = GPoint(PBL_IF_ROUND_ELSE(119, 56), PBL_IF_ROUND_ELSE(109, 145));
+  end_temp_line = GPoint(PBL_IF_ROUND_ELSE(120, 57)+(int)batt*3, PBL_IF_ROUND_ELSE(109, 145));
   graphics_draw_line(ctx, start_temp_line, end_temp_line);    
   // top line
-  start_temp_line = GPoint(PBL_IF_ROUND_ELSE(119, 88), PBL_IF_ROUND_ELSE(108, 98));
-  end_temp_line = GPoint(PBL_IF_ROUND_ELSE(151, 120), PBL_IF_ROUND_ELSE(108, 98));
+  start_temp_line = GPoint(PBL_IF_ROUND_ELSE(119, 56), PBL_IF_ROUND_ELSE(108, 144));
+  end_temp_line = GPoint(PBL_IF_ROUND_ELSE(151, 87), PBL_IF_ROUND_ELSE(108, 144));
   graphics_draw_line(ctx, start_temp_line, end_temp_line);    
   // bottom line
   //start_temp_line = GPoint(PBL_IF_ROUND_ELSE(119, 88), PBL_IF_ROUND_ELSE(110, 100));
@@ -284,7 +297,7 @@ static void update_proc_hands(Layer *layer, GContext *ctx) {
   // move health position depending on time (hand down position)
   GTextAlignment tmp_ta;
   // detect align
-  if (( t->tm_min >= 25 ) && ( t->tm_min < 30 )) {
+  /*if (( t->tm_min >= 25 ) && ( t->tm_min < 30 )) {
       tmp_ta=GTextAlignmentLeft;
   } else if (( t->tm_min >= 30 ) && ( t->tm_min <= 35 )) {
       tmp_ta=GTextAlignmentRight;
@@ -299,9 +312,9 @@ static void update_proc_hands(Layer *layer, GContext *ctx) {
 #ifdef DEBUG
   APP_LOG(APP_LOG_LEVEL_DEBUG,"Move health text");
 #endif
-  }
+  }*/
 
-  if ( settings.WeatherUpdateInterval != OFF ) {
+  /*if ( settings.WeatherUpdateInterval != OFF ) {
   // move temperature position
   if ( t->tm_min >= 55 ) {
      tmp_ta=GTextAlignmentRight;
@@ -319,7 +332,7 @@ static void update_proc_hands(Layer *layer, GContext *ctx) {
   APP_LOG(APP_LOG_LEVEL_DEBUG,"Move temp text");
 #endif
   };
-  }
+  }*/
 
   float minute_angle = TRIG_MAX_ANGLE * t->tm_min / 60;
   GPoint minute_hand_start = {
@@ -328,8 +341,8 @@ static void update_proc_hands(Layer *layer, GContext *ctx) {
   };
   
   GPoint minute_hand_end = {
-    .x = (int)(sin_lookup(minute_angle) * (int)hand_point_end / TRIG_MAX_RATIO) + center.x,
-    .y = (int)(-cos_lookup(minute_angle) * (int)hand_point_end / TRIG_MAX_RATIO) + center.y,
+    .x = (int)(sin_lookup(minute_angle) * (int)(hand_point_end-10) / TRIG_MAX_RATIO) + center.x,
+    .y = (int)(-cos_lookup(minute_angle) * (int)(hand_point_end-10) / TRIG_MAX_RATIO) + center.y,
   };    
   
   float hour_angle = TRIG_MAX_ANGLE * ((((t->tm_hour % 12) * 6) + (t->tm_min / 10))) / (12 * 6);
@@ -339,8 +352,8 @@ static void update_proc_hands(Layer *layer, GContext *ctx) {
   };
   
   GPoint hour_hand_end = {
-    .x = (int)(sin_lookup(hour_angle) * (int)(hand_point_end-16) / TRIG_MAX_RATIO) + center.x,
-    .y = (int)(-cos_lookup(hour_angle) * (int)(hand_point_end-16) / TRIG_MAX_RATIO) + center.y,
+    .x = (int)(sin_lookup(hour_angle) * (int)(hand_point_end-23) / TRIG_MAX_RATIO) + center.x,
+    .y = (int)(-cos_lookup(hour_angle) * (int)(hand_point_end-23) / TRIG_MAX_RATIO) + center.y,
   };   
   
   GPoint filler_start = {
@@ -452,7 +465,7 @@ static void icons_load_weather() {
       s_weather_bitmap=NULL;
   }
   // if inverted
-  if(settings.InvertColors) {
+  if(!settings.InvertColors) {
     // populate icon variable
     
     // DS clear-day
@@ -653,7 +666,7 @@ static void icons_load_weather() {
   // populate temp
   static char temp_buf[32];
   strcpy(temp_buf, "");
-  snprintf(temp_buf, sizeof(temp_buf), "%d°%d%c", weather.temp, weather.wind, weather.deg); 
+  snprintf(temp_buf, sizeof(temp_buf), "%d", weather.temp); 
   text_layer_set_text(s_temp_layer, temp_buf);
  
 #ifdef DEBUG
@@ -754,16 +767,29 @@ static void handler_battery(BatteryChargeState charge_state) {
 ///////////
 static void handler_health(HealthEventType event, void *context) {
  if(event==HealthEventMovementUpdate) {
-    status.step_count = (int)health_service_sum_today(HealthMetricStepCount);
+    status.step_count = (health_service_sum_today(HealthMetricStepCount));   
 #ifdef DEBUG
     APP_LOG(APP_LOG_LEVEL_DEBUG,"Run: handler_health");
 #endif
 #ifdef DEMO
-    status.step_count = 12345;
+   status.step_count = 6234;   
 #endif
     static char health_buf[32];
-    strcpy(health_buf,"");
- 	snprintf(health_buf, sizeof(health_buf), "%d", status.step_count);
+    strcpy(health_buf,""); 	  
+    if(status.step_count<1000){
+         countFirst = 0;
+         countSecond =  status.step_count/100;
+         snprintf(health_buf, sizeof(health_buf), "%d.%dK", countFirst,countSecond);
+    }else if(status.step_count<10000){
+        countFirst = status.step_count/1000;
+        countSecond =  (status.step_count - countFirst*1000)/100;       
+        snprintf(health_buf, sizeof(health_buf), "%d.%dK", countFirst,countSecond);
+    }else{
+        countFirst = status.step_count/1000;  
+        countSecond = 0;
+        snprintf(health_buf, sizeof(health_buf), "%dK", countFirst);
+    }
+    
     text_layer_set_text(s_health_layer, health_buf);
 #ifdef DEBUG
     APP_LOG(APP_LOG_LEVEL_INFO, "health handler completed");
@@ -919,34 +945,40 @@ static void outbox_sent_callback(DictionaryIterator *iterator, void *context) {
 // load main window //
 //////////////////////
 static void main_window_load(Window *window) {
+  background = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_BACKGROUND);
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);
   
   // fonts
   s_word_font = fonts_load_custom_font(resource_get_handle(WORD_FONT));
   s_number_font = fonts_load_custom_font(resource_get_handle(NUMBER_FONT));
-  s_hour_font = fonts_load_custom_font(resource_get_handle(HOUR_FONT));
+  s_hour_font = fonts_load_custom_font(resource_get_handle(HOUR_FONT));  
+  
 
   // setup layers
-
+  //Init Background
+	background_layer = layer_create(GRect(0, 0, 144, 168));	
+  layer_set_update_proc(background_layer, background_layer_update_callback);
+	layer_add_child(window_layer, background_layer);
+  
   // create canvas layer for dial
   s_dial_layer = layer_create(bounds);
   layer_set_update_proc(s_dial_layer, update_proc_dial);
   layer_add_child(window_layer, s_dial_layer);  
   
   // create temp text
-  s_temp_layer = text_layer_create(GRect(PBL_IF_ROUND_ELSE(46, 30), PBL_IF_ROUND_ELSE(26, 22), 88, 16));
+  s_temp_layer = text_layer_create(GRect(PBL_IF_ROUND_ELSE(46, 51), PBL_IF_ROUND_ELSE(26, 2), 24, 16));
   text_layer_set_background_color(s_temp_layer, GColorClear); // xxx 
   text_layer_set_text_alignment(s_temp_layer, GTextAlignmentCenter);
   text_layer_set_font(s_temp_layer, s_number_font);
   layer_add_child(s_dial_layer, text_layer_get_layer(s_temp_layer));
 
   // create weather bitmap
-  s_weather_bitmap_layer = bitmap_layer_create(GRect(PBL_IF_ROUND_ELSE(78, 60), 40, 24, 16));
+  s_weather_bitmap_layer = bitmap_layer_create(GRect(PBL_IF_ROUND_ELSE(78, 75), 2, 20, 16));
   bitmap_layer_set_compositing_mode(s_weather_bitmap_layer, GCompOpSet);  
   layer_add_child(s_dial_layer, bitmap_layer_get_layer(s_weather_bitmap_layer)); 
   // bluetooth disconnected icon
-  s_bluetooth_bitmap_layer = bitmap_layer_create(GRect(PBL_IF_ROUND_ELSE(20, 16), PBL_IF_ROUND_ELSE(84, 79), 14, 14));
+  s_bluetooth_bitmap_layer = bitmap_layer_create(GRect(PBL_IF_ROUND_ELSE(20, 63), PBL_IF_ROUND_ELSE(84, 94), 20, 14));
   bitmap_layer_set_compositing_mode(s_bluetooth_bitmap_layer, GCompOpSet);
   layer_add_child(s_dial_layer, bitmap_layer_get_layer(s_bluetooth_bitmap_layer));       
   // quiettime icon
@@ -964,21 +996,21 @@ static void main_window_load(Window *window) {
   layer_add_child(s_dial_layer, s_battery_layer);
 
  // create health layer text
-  s_health_layer = text_layer_create(GRect(PBL_IF_ROUND_ELSE(46, 30), PBL_IF_ROUND_ELSE(140, 130), 88, 16));
+  s_health_layer = text_layer_create(GRect(PBL_IF_ROUND_ELSE(46, 54), PBL_IF_ROUND_ELSE(140, 149), 38, 16));
   text_layer_set_background_color(s_health_layer, GColorClear); // xxx
   text_layer_set_text_alignment(s_health_layer, GTextAlignmentCenter);
   text_layer_set_font(s_health_layer, s_number_font);
   layer_add_child(s_dial_layer, text_layer_get_layer(s_health_layer));  
   
   // Day Text
-  s_day_text_layer = text_layer_create(GRect(PBL_IF_ROUND_ELSE(114, 86), PBL_IF_ROUND_ELSE(76, 66), 34, 14));
+  s_day_text_layer = text_layer_create(GRect(PBL_IF_ROUND_ELSE(114, 2), PBL_IF_ROUND_ELSE(76, 75), 24, 16));
   text_layer_set_background_color(s_day_text_layer, GColorClear); //xxx
   text_layer_set_text_alignment(s_day_text_layer, GTextAlignmentCenter);
   text_layer_set_font(s_day_text_layer, s_word_font);
   layer_add_child(s_dial_layer, text_layer_get_layer(s_day_text_layer));
   
   // Date text
-  s_date_text_layer = text_layer_create(GRect(PBL_IF_ROUND_ELSE(110, 80), PBL_IF_ROUND_ELSE(88, 78), 48, 16)); //50=48
+  s_date_text_layer = text_layer_create(GRect(PBL_IF_ROUND_ELSE(110, 119), PBL_IF_ROUND_ELSE(88, 75), 28, 16)); //50=48
   text_layer_set_background_color(s_date_text_layer, GColorClear); //xxx
   text_layer_set_text_alignment(s_date_text_layer, GTextAlignmentCenter);
   text_layer_set_font(s_date_text_layer, s_number_font);
@@ -1036,7 +1068,7 @@ static void main_window_unload(Window *window) {
   if (s_bluetooth_bitmap) gbitmap_destroy(s_bluetooth_bitmap);
   if (s_charging_bitmap) gbitmap_destroy(s_charging_bitmap);
   if (s_quiet_bitmap) gbitmap_destroy(s_quiet_bitmap);
-  
+  if (background) gbitmap_destroy(background);
 #ifdef DEBUG
     APP_LOG(APP_LOG_LEVEL_INFO, "destroy bitmap layer");
 #endif
@@ -1063,7 +1095,7 @@ static void main_window_unload(Window *window) {
   layer_destroy(s_dial_layer);
   layer_destroy(s_hands_layer);
   layer_destroy(s_battery_layer); 
-
+  layer_destroy(background_layer);
 #ifdef DEBUG
     APP_LOG(APP_LOG_LEVEL_INFO, "end main window unload");
 #endif

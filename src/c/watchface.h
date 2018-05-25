@@ -12,9 +12,13 @@
 ////////////////////
 // font variables //
 ////////////////////
-#define WORD_FONT RESOURCE_ID_WORD_FONT_12
-#define NUMBER_FONT RESOURCE_ID_NUMBER_FONT_16
-#define HOUR_FONT RESOURCE_ID_HOUR_FONT_26
+#define WORD_FONT RESOURCE_ID_FONT_WORD_14
+#define NUMBER_FONT RESOURCE_ID_FONT_SOVIET_14
+#define HOUR_FONT RESOURCE_ID_FONT_SOVIET_24
+
+// IMAGE VARIBALES
+#define IMAGE_BACKGROUND RESOURCE_ID_IMAGE_BACKGROUND
+
 
 // persistent storage keys
 #define SETTINGS_KEY 1
@@ -28,7 +32,7 @@ enum languages {
 };
 static char *a_week[2][7] = {
     { "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT" },
-    { "ВСК", "ПНД", "ВТР", "СРД", "ЧТВ", "ПТН", "СБТ" }
+    { "ВС", "ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ" }
 };
 enum weather_units {
 	METRIC=0,

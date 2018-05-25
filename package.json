@@ -3,26 +3,15 @@
     "dependencies": {
         "pebble-clay": "^1.0.4"
     },
-    "keywords": [],
+    "keywords": [
+        "clock",
+        "analog",
+        "watchface",
+        "weather",
+        "health",
+        "quiettime"
+    ],
     "name": "dial",
-    "description": "Analog watchwace with weather and health data",
-    "license": "GPL-3.0",
-    "repository": {
-    	"type": "git",
-    	"url": "git://github.com/stosem/pebble-wf-AdvancedAnalog.git"
-  	},
-  	"keywords": [
-    	"clock",
-    	"analog",
-    	"watchface",
-		"weather",
-		"health",
-		"quiettime"
-  	],
-  	"bugs": {
-    "url": "https://github.com/stosem/pebble-wf-AdvancedAnalog/issues"
-  	},
-	"homepage": "https://github.com/stosem/pebble-wf-AdvancedAnalog",
     "pebble": {
         "capabilities": [
             "location",
@@ -50,6 +39,33 @@
         "projectType": "native",
         "resources": {
             "media": [
+                {
+                    "characterRegex": "[\u0430\u0431\u0432\u0433\u0434\u0435\u0451\u0436\u0437\u0438\u043a\u043b\u043c\u043d\u043e\u043f\u0440\u0441\u0442\u0443\u0444\u0445\u044b\u044d\u044e\u044f\u0446\u0449\u0448\u044c\u044a\u0447\u0439\u0410\u0411\u0412\u0413\u0414\u0415\u0401\u0416\u0417\u0418\u041a\u041b\u041c\u041d\u041e\u041f\u0420\u0421\u0422\u0423\u0424\u0425\u042b\u042d\u042e\u042f\u0426\u0429\u0428\u042c\u042a\u0427\u0419]",
+                    "file": "fonts/toxigenesis.bold.ttf",
+                    "name": "FONT_WORD_14",
+                    "targetPlatforms": null,
+                    "type": "font"
+                },
+                {
+                    "file": "images/background",
+                    "name": "IMAGE_BACKGROUND",
+                    "targetPlatforms": null,
+                    "type": "bitmap"
+                },
+                {
+                    "characterRegex": "[\u0410-\u042fA-Z0-9.\"\\-k ]",
+                    "file": "fonts/SovietProgram.ttf",
+                    "name": "FONT_SOVIET_14",
+                    "targetPlatforms": null,
+                    "type": "font"
+                },
+                {
+                    "characterRegex": "[\u0410-\u042fA-Z0-9. ]",
+                    "file": "fonts/SovietProgram.ttf",
+                    "name": "FONT_SOVIET_24",
+                    "targetPlatforms": null,
+                    "type": "font"
+                },
                 {
                     "file": "images/menu_icon.png",
                     "menuIcon": true,
@@ -124,6 +140,30 @@
                     "type": "bitmap"
                 },
                 {
+                    "file": "images/QUIET_WHITE_ICON.png",
+                    "name": "QUIET_WHITE_ICON",
+                    "targetPlatforms": null,
+                    "type": "bitmap"
+                },
+                {
+                    "file": "images/QUIET_BLACK_ICON.png",
+                    "name": "QUIET_BLACK_ICON",
+                    "targetPlatforms": null,
+                    "type": "bitmap"
+                },
+                {
+                    "file": "images/POWER_WHITE_ICON.png",
+                    "name": "POWER_WHITE_ICON",
+                    "targetPlatforms": null,
+                    "type": "bitmap"
+                },
+                {
+                    "file": "images/POWER_BLACK_ICON.png",
+                    "name": "POWER_BLACK_ICON",
+                    "targetPlatforms": null,
+                    "type": "bitmap"
+                },
+                {
                     "file": "images/PARTLY_CLOUDY_NIGHT_WHITE_ICON.png",
                     "name": "PARTLY_CLOUDY_NIGHT_WHITE_ICON",
                     "targetPlatforms": null,
@@ -168,18 +208,6 @@
                 {
                     "file": "images/MIST_DAY_BLACK_ICON.png",
                     "name": "MIST_DAY_BLACK_ICON",
-                    "targetPlatforms": null,
-                    "type": "bitmap"
-                },
-                {
-                    "file": "images/POWER_WHITE_ICON.png",
-                    "name": "POWER_WHITE_ICON",
-                    "targetPlatforms": null,
-                    "type": "bitmap"
-                },
-                {
-                    "file": "images/POWER_BLACK_ICON.png",
-                    "name": "POWER_BLACK_ICON",
                     "targetPlatforms": null,
                     "type": "bitmap"
                 },
@@ -244,34 +272,8 @@
                     "type": "bitmap"
                 },
                 {
-                    "file": "images/QUIET_WHITE_ICON.png",
-                    "name": "QUIET_WHITE_ICON",
-                    "targetPlatforms": null,
-                    "type": "bitmap"
-                },
-                {
-                    "file": "images/QUIET_BLACK_ICON.png",
-                    "name": "QUIET_BLACK_ICON",
-                    "targetPlatforms": null,
-                    "type": "bitmap"
-                },
- 
-                {
-                    "file": "fonts/StolzlThin.ttf",
-                    "characterRegex": "[А-ЯA-Z0-9 ]", 
-                    "name": "WORD_FONT_12",
-                    "targetPlatforms": null,
-                    "type": "font"
-                },
-                {
                     "file": "fonts/W800_InfoSmall.ttf",
                     "name": "NUMBER_FONT_16",
-                    "targetPlatforms": null,
-                    "type": "font"
-                },
-                {
-                    "file": "fonts/AlienRegular.ttf",
-                    "name": "HOUR_FONT_26",
                     "targetPlatforms": null,
                     "type": "font"
                 }

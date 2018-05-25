@@ -15,7 +15,7 @@ module.exports = [
 				"type": "toggle",
 				"messageKey": "KEY_INVERT_COLORS",
 				"label": "Invert Colors",
-				"defaultValue": false 
+				"defaultValue": true 
 			}
 		]
 	},
@@ -29,7 +29,7 @@ module.exports = [
 			{
   				"type": "select",
   				"messageKey": "KEY_LANG",
-  				"defaultValue": "0",
+  				"defaultValue": "1",
   				"label": "Language",
   				"options": [
     					{ 
@@ -45,7 +45,7 @@ module.exports = [
 			{
   				"type": "select",
   				"messageKey": "KEY_DATE_FORMAT",
-  				"defaultValue": "%d-%m",
+  				"defaultValue": "%d",
   				"label": "Date format",
   				"options": [
                         { 
